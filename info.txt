@@ -1,7 +1,6 @@
 Run:
-python -m http.server 8000 + (en otra consola) python app.py
+python app.py
 
 Complidado:
 pip install pyinstaller
-pyinstaller --onefile --windowed --icon=./img/favicon.ico app.py
-pyinstaller --onefile --windowed app.py
+pyinstaller --onefile --windowed --icon=./img/favicon.ico M3U2Folder.py 
