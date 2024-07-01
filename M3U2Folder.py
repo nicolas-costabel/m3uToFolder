@@ -27,8 +27,8 @@ html_content = """
         body {{
             padding: 20px;
             box-sizing: border-box;
+            height: 100%;
             overflow: auto;
-            height: 100vh;
         }}
         body::-webkit-scrollbar {{
             display: none;
@@ -48,9 +48,10 @@ html_content = """
             background-color: #222;
             border-radius: 10px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-            height: 100vh;
+            height: 100%;
             display: flex;
             flex-direction: column;
+            overflow: hidden;
         }}
         label {{
             display: block;
@@ -127,7 +128,7 @@ html_content = """
             <button onclick="selectM3UFile()">Browse</button>
         </div>
 
-        <label for="music-dir">Root Music folder:</label>
+        <label for="music-dir">Root Music folder (for Rekordbox leave it blank):</label>
         <div class="linea">
             <input type="text" id="music-dir" readonly>
             <button onclick="selectMusicDirectory()">Browse</button>
@@ -139,9 +140,9 @@ html_content = """
             <button onclick="selectDestinationDirectory()">Browse</button>
         </div>
 
-        <label for="prefix">M3U parent path to remove:</label>
+        <label for="prefix">M3U parent path to remove (for Rekordbox leave it blank):</label>
         <div class="linea">
-            <input type="text" id="prefix" readonly>
+            <input type="text" id="prefix" placeholder="">
         </div>
         <div class="linea-example">
             <div class="example" id="example">M3U path example: </div>
@@ -171,8 +172,8 @@ html_content = """
             const m3u = document.getElementById('m3u').value;
             const musicDir = document.getElementById('music-dir').value;
             const destDir = document.getElementById('dest-dir').value;
-            if (!m3u || !musicDir || !destDir) {{
-                alert('Playlist M3U, Root Music Folder, and Playlist destination Folder are required fields.');
+            if (!m3u || !destDir) {{
+                alert('Playlist M3U and Playlist destination Folder are required fields.');
                 return;
             }}
             pywebview.api.create_playlist_folder().then(updateLog);
@@ -191,8 +192,7 @@ html_content = """
             if (data.m3u) {{
                 document.getElementById('m3u').value = data.m3u;
                 document.getElementById('example').innerText = 'M3U path example: ' + data.example;
-                const firstDir = data.example.split('/')[0] + '/';
-                document.getElementById('prefix').value = firstDir;
+                document.getElementById('prefix').value = ''; // Keep it blank by default
             }}
             if (data.music_dir) {{
                 document.getElementById('music-dir').value = data.music_dir;
@@ -242,9 +242,13 @@ def create_playlist_folder(m3u, music_dir, dest_dir, prefix):
         line = line.strip()
         if line and not line.startswith('#'):
             try:
-                if line.startswith(prefix):
-                    line = line[len(prefix):]
-                song_path = os.path.abspath(os.path.join(music_dir, line))
+                if music_dir:  # If music_dir is specified, use it
+                    if line.startswith(prefix):
+                        line = line[len(prefix):]
+                    song_path = os.path.abspath(os.path.join(music_dir, line))
+                else:  # If music_dir is not specified, use the absolute path
+                    song_path = line
+
                 if os.path.exists(song_path):
                     shutil.copy(song_path, output_directory)
                     song_name = os.path.basename(song_path)
@@ -265,7 +269,7 @@ def create_playlist_folder(m3u, music_dir, dest_dir, prefix):
 
 class API:
     def select_m3u_file(self):
-        file_path = webview.windows[0].create_file_dialog(webview.OPEN_DIALOG, file_types=['M3U files (*.m3u)'])
+        file_path = webview.windows[0].create_file_dialog(webview.OPEN_DIALOG, file_types=['M3U and M3U8 files (*.m3u;*.m3u8)'])
         if file_path:
             file_path = file_path[0]
             example = get_example(file_path)
@@ -299,5 +303,5 @@ base64_favicon = get_base64_image('./img/favicon.ico')
 base64_background = get_base64_image('./img/background.png')
 html_content = html_content.format(base64_favicon=base64_favicon, base64_background=base64_background)
 
-window = webview.create_window("M3U Playlist to Folder", html=html_content, js_api=api, width=800, height=600, resizable=True)
+window = webview.create_window("M3U Playlist to Folder", html=html_content, js_api=api, width=800, height=800, resizable=True)
 webview.start()
