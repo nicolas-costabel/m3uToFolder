@@ -3,6 +3,7 @@ import shutil
 import webview
 import subprocess
 import platform
+import time
 
 html_content = """
 <!DOCTYPE html>
@@ -227,6 +228,8 @@ def get_example(m3u_file):
             return line
     return ""
 
+
+
 def create_playlist_folder(m3u, music_dir, dest_dir, prefix):
     log = []
     playlist_name = os.path.splitext(os.path.basename(m3u))[0]
@@ -237,6 +240,9 @@ def create_playlist_folder(m3u, music_dir, dest_dir, prefix):
 
     with open(m3u, 'r', encoding='utf-8') as file:
         lines = file.readlines()
+
+    base_timestamp = time.time()  # Current timestamp as a baseline
+    track_number = 1  # For timestamp incrementing
 
     for line in lines:
         line = line.strip()
@@ -250,14 +256,24 @@ def create_playlist_folder(m3u, music_dir, dest_dir, prefix):
                     song_path = line
 
                 if os.path.exists(song_path):
-                    shutil.copy(song_path, output_directory)
                     song_name = os.path.basename(song_path)
+                    new_song_path = os.path.join(output_directory, song_name)
+
+                    # Copy file to the new path without adding track numbers
+                    shutil.copy(song_path, new_song_path)
+
+                    # Set the creation and modification date based on order in the playlist
+                    timestamp = base_timestamp + track_number  # Increment timestamp for each track
+                    os.utime(new_song_path, (timestamp, timestamp))  # Update access and modified times
+
                     log.append(f"[ OK ] - {song_name}")
+                    track_number += 1  # Increment track number for the next file's timestamp
                 else:
                     log.append(f'<span style="color:red;">[ NOT FOUND ] - {line}</span>')
             except Exception as e:
                 log.append(f'<span style="color:red;">[ ERROR COPYING SONG ] {line}: {e}</span>')
 
+    # Open the destination folder after processing
     if platform.system() == "Windows":
         os.startfile(output_directory)
     elif platform.system() == "Darwin":
@@ -266,6 +282,65 @@ def create_playlist_folder(m3u, music_dir, dest_dir, prefix):
         subprocess.Popen(["xdg-open", output_directory])
 
     return log
+
+
+
+#? CON TRACK NUMBER
+# def create_playlist_folder(m3u, music_dir, dest_dir, prefix):
+#     log = []
+#     playlist_name = os.path.splitext(os.path.basename(m3u))[0]
+#     output_directory = os.path.join(dest_dir, playlist_name)
+
+#     if not os.path.exists(output_directory):
+#         os.makedirs(output_directory)
+
+#     with open(m3u, 'r', encoding='utf-8') as file:
+#         lines = file.readlines()
+
+#     track_number = 1  # Start the track numbering from 1
+#     base_timestamp = time.time()  # Current timestamp as a baseline
+
+#     for line in lines:
+#         line = line.strip()
+#         if line and not line.startswith('#'):
+#             try:
+#                 if music_dir:  # If music_dir is specified, use it
+#                     if line.startswith(prefix):
+#                         line = line[len(prefix):]
+#                     song_path = os.path.abspath(os.path.join(music_dir, line))
+#                 else:  # If music_dir is not specified, use the absolute path
+#                     song_path = line
+
+#                 if os.path.exists(song_path):
+#                     song_name = os.path.basename(song_path)
+#                     # Format track number as a two-digit number and prefix to filename
+#                     new_song_name = f"{track_number:02d} - {song_name}"
+#                     new_song_path = os.path.join(output_directory, new_song_name)
+
+#                     # Copy file to the new path
+#                     shutil.copy(song_path, new_song_path)
+
+#                     # Set the creation and modification date based on order in the playlist
+#                     timestamp = base_timestamp + track_number  # Increment timestamp for each track
+#                     os.utime(new_song_path, (timestamp, timestamp))  # Update access and modified times
+
+#                     log.append(f"[ OK ] - {new_song_name}")
+#                     track_number += 1  # Increment track number
+#                 else:
+#                     log.append(f'<span style="color:red;">[ NOT FOUND ] - {line}</span>')
+#             except Exception as e:
+#                 log.append(f'<span style="color:red;">[ ERROR COPYING SONG ] {line}: {e}</span>')
+
+#     # Open the destination folder after processing
+#     if platform.system() == "Windows":
+#         os.startfile(output_directory)
+#     elif platform.system() == "Darwin":
+#         subprocess.Popen(["open", output_directory])
+#     else:
+#         subprocess.Popen(["xdg-open", output_directory])
+
+#     return log
+
 
 class API:
     def select_m3u_file(self):
